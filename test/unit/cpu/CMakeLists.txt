@@ -41,6 +41,10 @@
 #
 ###############################################################################
 
+if (NOT RAJA_ENABLE_NESTED)
+  add_definitions(-DRAJA_ENABLE_NESTED)
+endif()
+
 if (RAJA_ENABLE_CUDA)
   cuda_add_library(bis buildIndexSet.cxx)
   cuda_add_executable(CPUtraversal-test.exe
