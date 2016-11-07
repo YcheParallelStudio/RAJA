@@ -82,8 +82,8 @@ namespace RAJA
 //////////////////////////////////////////////////////////////////////
 //
 
-// HIDDEN namespace to encapsulate helper functions
-namespace HIDDEN
+// detail namespace to encapsulate helper functions
+namespace detail
 {
 /*!
  ******************************************************************************
@@ -92,23 +92,17 @@ namespace HIDDEN
  *
  ******************************************************************************
  */
-__device__ __forceinline__ Index_type getGlobalIdx_3D_3D()
+__device__ __forceinline__ Index_type getGlobalIdx()
 {
-  Index_type blockId =
-      blockIdx.x + blockIdx.y * gridDim.x + gridDim.x * gridDim.y * blockIdx.z;
-  Index_type threadId = blockId * (blockDim.x * blockDim.y * blockDim.z)
-                        + (threadIdx.z * (blockDim.x * blockDim.y))
-                        + (threadIdx.y * blockDim.x) + threadIdx.x;
-  return threadId;
-}
-__device__ __forceinline__ Index_type getGlobalNumThreads_3D_3D()
-{
-  Index_type numThreads = blockDim.x * blockDim.y * blockDim.z * 
-                          gridDim.x * gridDim.y * gridDim.z;
-  return numThreads;
+  return blockIdx.x * blockDim.x + threadIdx.x;
 }
 
-} // end HIDDEN namespace for helper functions
+__device__ __forceinline__ Index_type getGlobalNumThreads()
+{
+  return blockDim.x * gridDim.x;
+}
+
+} // end detail namespace for helper functions
 
 
 /*!
@@ -126,8 +120,8 @@ __global__ void forall_cuda_kernel(LOOP_BODY loop_body,
 
   auto body = loop_body;
 
-  Index_type ii = HIDDEN::getGlobalIdx_3D_3D();
-  Index_type numThreads = HIDDEN::getGlobalNumThreads_3D_3D();
+  Index_type ii = detail::getGlobalIdx();
+  Index_type numThreads = detail::getGlobalNumThreads();
   for (; ii < length; ii += numThreads) {
     body(idx[ii]);
   }
@@ -151,8 +145,8 @@ __global__ void forall_Icount_cuda_kernel(LOOP_BODY loop_body,
 
   auto body = loop_body;
 
-  Index_type ii = HIDDEN::getGlobalIdx_3D_3D();
-  Index_type numThreads = HIDDEN::getGlobalNumThreads_3D_3D();
+  Index_type ii = detail::getGlobalIdx();
+  Index_type numThreads = detail::getGlobalNumThreads();
   for (; ii < length; ii += numThreads) {
     body(ii + icount, idx[ii]);
   }
