@@ -121,11 +121,60 @@ __global__ void forall_cuda_kernel(LOOP_BODY loop_body,
   auto body = loop_body;
 
   Index_type ii = detail::getGlobalIdx();
-  Index_type numThreads = detail::getGlobalNumThreads();
-  for (; ii < length; ii += numThreads) {
+
+  if (ii < length) {
     body(idx[ii]);
   }
 }
+
+/*!
+ ******************************************************************************
+ *
+ * \brief  CUDA kernal forall template for indirection array.
+ *
+ ******************************************************************************
+ */
+template <typename LOOP_BODY>
+__global__ void forall_cuda_rs_kernel(LOOP_BODY loop_body,
+                                   Index_type begin,
+                                   Index_type length)
+{
+
+  auto body = loop_body;
+
+  Index_type ii = detail::getGlobalIdx();
+  if (ii < length) {
+    body(begin + ii);
+  }
+}
+
+template <size_t BLOCK_SIZE, bool Async, typename LOOP_BODY>
+RAJA_INLINE void forall(cuda_exec<BLOCK_SIZE, Async>,
+                        RangeSegment&& iter,
+                        LOOP_BODY&& loop_body)
+{
+  beforeCudaKernelLaunch();
+
+  auto body = loop_body;
+
+  Index_type begin = iter.getBegin();
+  Index_type len = iter.getLength();
+
+  size_t gridSize = RAJA_DIVIDE_CEILING_INT(len, BLOCK_SIZE);
+  gridSize = RAJA_MIN(gridSize, RAJA_CUDA_MAX_NUM_BLOCKS);
+
+  RAJA_FT_BEGIN;
+
+  forall_cuda_rs_kernel<<<RAJA_CUDA_LAUNCH_PARAMS(gridSize, BLOCK_SIZE)
+                    >>>(std::move(body), begin, len);
+
+  RAJA_CUDA_CHECK_AND_SYNC(Async);
+
+  RAJA_FT_END;
+
+  afterCudaKernelLaunch();
+}
+
 
 /*!
  ******************************************************************************
@@ -146,8 +195,8 @@ __global__ void forall_Icount_cuda_kernel(LOOP_BODY loop_body,
   auto body = loop_body;
 
   Index_type ii = detail::getGlobalIdx();
-  Index_type numThreads = detail::getGlobalNumThreads();
-  for (; ii < length; ii += numThreads) {
+
+  if (ii < length) {
     body(ii + icount, idx[ii]);
   }
 }
